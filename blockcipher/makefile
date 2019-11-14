@@ -1,6 +1,11 @@
-blockcipher.o: blockcipher.c blockcipher.h error_blockcipher.c error_blockcipher.h
-	gcc -c blockcipher.c error_blockcipher.c
+BC = blockcipher.c
+BCH = blockcipher.h
+ERR_BC = error_blockcipher.c
+ERR_BCH = error_blockcipher.h
 
-error_blockcipher.o: error_blockcipher.c error_blockcipher.h
-	gcc -c error_blockcipher.c
+blockcipher.o: $(BC) $(BCH) $(ERR_BC) $(ERR_BCH)
+	gcc -c $(BC) $(ERR_BC)
+
+error_blockcipher.o: $(ERR_BC)
+	gcc -c $(ERR_BC)
 	

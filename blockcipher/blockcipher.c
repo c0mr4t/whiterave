@@ -23,11 +23,12 @@ char** electronic_code_book_enc(char* message, int m_len, int keysize) {
 		ret[i] = (char *) malloc(keysize_bytes * sizeof(char));
 
 	pthread_t threads[number_of_blocks];
+	thread_arg_ecb_enc *arg;
 	for (int i = 0; i < number_of_blocks; ++i) {
-		thread_arg_ecb_enc *arg = (thread_arg_ecb_enc *) malloc(sizeof(thread_arg_ecb_enc));
+		arg = (thread_arg_ecb_enc *) malloc(sizeof(thread_arg_ecb_enc));
 		
 		arg->id = i;
-		arg->key = key; // key
+		arg->key = key;
 		arg->keysize_bytes = keysize_bytes;
 		arg->blocksize = keysize_bytes;
 		arg->message = &(message[i * arg->blocksize]);
@@ -39,7 +40,7 @@ char** electronic_code_book_enc(char* message, int m_len, int keysize) {
 		}
 	}
 
-	// free(arg);
+	free(arg);
 
 	for (int i = 0; i < number_of_blocks; ++i) {
 		if (pthread_join(threads[i], NULL)) {
@@ -58,3 +59,4 @@ void *thread_start_ecb_enc_block (void *arg) {
 	
 	return NULL;
 }
+
