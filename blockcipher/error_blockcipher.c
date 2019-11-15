@@ -20,8 +20,11 @@ int error_ecb_enc(char* message, int m_len, int keysize) {
 	if (m_len == 0)
 		global_errno = 2;
 
-	if ((keysize % 8) != 0)
+	if (keysize <= 0)
 		global_errno = 3;
+
+	if ((keysize % 8) != 0)
+		global_errno = 4;
 
 	/***************************************************/
 
