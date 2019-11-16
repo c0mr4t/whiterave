@@ -1,5 +1,5 @@
-char** electronic_code_book_enc(char* message, int m_len, int keysize);
-char* electronic_code_book_dec(char** messages, int m_len, int key);
+struct electronic_code_book_parameters* electronic_code_book_enc(struct electronic_code_book_parameters* input);
+struct electronic_code_book_parameters* electronic_code_book_dec(struct electronic_code_book_parameters* input);
 
 char* CipherBlockChainingEnc(char* message, int key);
 char* CipherBlockChainingDec(char* message, int key);
@@ -24,3 +24,20 @@ typedef struct {
 	int blocksize;
 	char *ret;
 } thread_arg_ecb_enc;
+
+struct electronic_code_book_parameters {
+	char *message;
+	char *m_file;
+
+	char **enc;
+	char *enc_file;
+	
+	int m_len;
+	int enc_len;
+
+	int *key;
+	int keysize;
+	
+	int number_of_blocks;
+	int blocksize;
+};

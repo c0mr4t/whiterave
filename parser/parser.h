@@ -1,7 +1,6 @@
 typedef struct {
 	char *encryption;
 	char *blockcipher;
-	char *keyfile;
 	int keysize;
 	char *message;
 	char *m_file;
