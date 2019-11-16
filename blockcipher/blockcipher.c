@@ -4,27 +4,38 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
+
+#ifndef MAX_M_LEN
+#define MAX_M_LEN 65536
+#endif
 
 void *thread_start_ecb_enc_block (void *arg);
 
-// m_len = length(message) in bytes
-struct electronic_code_book_enc_ret* electronic_code_book_enc(char* message, int m_len, int keysize) {
-	if (!error_ecb_enc(message, m_len, keysize)) // override
-		return NULL;
-
-	struct electronic_code_book_enc_ret *ret = malloc(sizeof(*ret)); 
-
-	int keysize_bytes = keysize / 8;
-
-	if (m_len < keysize_bytes) {
-		keysize = m_len * 8;
-		keysize_bytes = keysize / 8;
+struct electronic_code_book_parameters* electronic_code_book_enc(struct electronic_code_book_parameters* input) {
+	if (input->message == NULL) {
+		FILE *fd = fopen(input->m_file, "r");
+		input->message = (char *) malloc(MAX_M_LEN * sizeof(char));
+		input->message = fgets(input->message, MAX_M_LEN, fd);
 	}
 
-	ret->key = generate_ecb_key(keysize);
-	ret->keysize = keysize;
-	ret->number_of_blocks = 1 + ((m_len - 1) / (keysize_bytes)); // ceil(int division)
+	if (error_ecb_enc(input->message, strlen(input->message), input->keysize) == ERROR) // override
+		return NULL;
+
+	struct electronic_code_book_parameters *ret = (struct electronic_code_book_parameters *) malloc(sizeof(*ret)); 
+
+	int keysize_bytes = input->keysize / 8;
+
+	if (strlen(input->message) < keysize_bytes) {
+		input->keysize = strlen(input->message) * 8;
+		keysize_bytes = input->keysize / 8;
+	}
+
+	ret->m_len = strlen(input->message);
+	ret->key = generate_ecb_key(input->keysize);
+	ret->keysize = input->keysize;
+	ret->number_of_blocks = 1 + ((strlen(input->message) - 1) / (keysize_bytes)); // ceil(int division)
 	ret->blocksize = keysize_bytes;
 	ret->enc = (char **) malloc(ret->number_of_blocks * sizeof(char *));
 	for (int i = 0; i < ret->number_of_blocks; ++i)
@@ -39,7 +50,7 @@ struct electronic_code_book_enc_ret* electronic_code_book_enc(char* message, int
 		arg->key = ret->key;
 		arg->keysize_bytes = keysize_bytes;
 		arg->blocksize = keysize_bytes;
-		arg->message = &(message[i * arg->blocksize]);
+		arg->message = &(input->message[i * arg->blocksize]);
 		arg->ret = &(*(ret->enc)[arg->id]);
 
 		if (pthread_create(&threads[i], NULL, thread_start_ecb_enc_block, (void *) arg)) {
@@ -68,7 +79,7 @@ void *thread_start_ecb_enc_block (void *arg) {
 	return NULL;
 }
 
-// char* electronic_code_book_dec(char* message, int m_len, int *key, int keysize) {
+// char* electronic_code_book_dec(struct electronic_code_book_enc_ret* input) {
 
 // }
 

@@ -3,14 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef NO_ERROR
-#define NO_ERROR 0
-#endif
-
-#ifndef ERROR
-#define ERROR -1
-#endif
-
 int global_errno;
 
 int error_ecb_enc(char* message, int m_len, int keysize) {
@@ -29,9 +21,9 @@ int error_ecb_enc(char* message, int m_len, int keysize) {
 	/***************************************************/
 
 	if (global_errno)
-		return NO_ERROR;
-	else
 		return ERROR;
+	else
+		return NO_ERROR;
 }
 
 void ecb_errno(char *message, int m_len, int keysize) {
