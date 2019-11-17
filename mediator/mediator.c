@@ -20,17 +20,33 @@ void call_ecb(start_conf* input) {
     ecb_input->m_file = input->m_file;
     ecb_input->keysize = input->keysize;
 
-    struct electronic_code_book_parameters *ecb_output;
-    if((ecb_output = electronic_code_book_enc(ecb_input)) == NULL) {
+    struct electronic_code_book_parameters *ecb_output_enc;
+    if((ecb_output_enc = electronic_code_book_enc(ecb_input)) == NULL) {
         ecb_errno(ecb_input->message, strlen(ecb_input->message), ecb_input->keysize);
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < ecb_output->number_of_blocks; ++i) {
-        for (int j = 0; j < ecb_output->keysize / 8; ++j) {
-            printf("%c", (ecb_output->enc)[i][j]);
+    for (int i = 0; i < ecb_output_enc->number_of_blocks; ++i) {
+        for (int j = 0; j < ecb_output_enc->keysize / 8; ++j) {
+            printf("%c", (ecb_output_enc->enc)[i][j]);
         }
     }
 
     printf("\n");
+
+    // decode
+
+    struct electronic_code_book_parameters *ecb_output_dec;
+    if((ecb_output_dec = electronic_code_book_dec(ecb_output_enc)) == NULL) {
+        ecb_errno(ecb_output_enc->message, strlen(ecb_output_enc->message), ecb_output_enc->keysize);
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < strlen(ecb_output_dec->message); ++i)
+        printf("%c", ecb_output_dec->message[i]);
+
+    printf("\n");
+
+    free(ecb_output_enc);
+    free(ecb_output_dec);
+    free(ecb_input);
 }

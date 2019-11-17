@@ -11,8 +11,6 @@
 #define MAX_M_LEN 65536
 #endif
 
-void *thread_start_ecb_enc_block (void *arg);
-
 struct electronic_code_book_parameters* electronic_code_book_enc(struct electronic_code_book_parameters* input) {
 	if (input->message == NULL) {
 		FILE *fd = fopen(input->m_file, "r");
@@ -49,10 +47,56 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 		arg->key = ret->key;
 		arg->keysize_bytes = keysize_bytes;
 		arg->blocksize = keysize_bytes;
-		arg->message = &(input->message[i * arg->blocksize]);
-		arg->ret = &(*(ret->enc)[arg->id]);
+		arg->message = &(input->message[arg->id * arg->blocksize]);
+		arg->enc_block = &(*(ret->enc)[arg->id]);
 
 		if (pthread_create(&threads[i], NULL, thread_start_ecb_enc_block, (void *) arg)) {
+			perror("pthread_create");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	free(arg);
+
+	for (int i = 0; i < ret->number_of_blocks; ++i) {
+		if (pthread_join(threads[i], NULL)) {
+			perror("pthread_join");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	free(input); // is this working?
+
+	return ret;
+}
+
+void *thread_start_ecb_enc_block (void *arg) {
+	thread_arg_ecb_enc thread_data = *((thread_arg_ecb_enc *) arg);
+	for (int i = 0; i < thread_data.keysize_bytes; ++i)
+		thread_data.enc_block[i] = thread_data.message[i] ^ ((char *) thread_data.key)[i];
+	
+	return NULL;
+}
+
+struct electronic_code_book_parameters* electronic_code_book_dec(struct electronic_code_book_parameters* input) {
+	struct electronic_code_book_parameters *ret = input;
+	input->message = (char *) malloc (1000 * sizeof(char));	
+
+	int keysize_bytes = input->keysize / 8;
+
+	pthread_t threads[ret->number_of_blocks];
+	thread_arg_ecb_dec *arg;
+	for (int i = 0; i < ret->number_of_blocks; ++i) {
+		arg = (thread_arg_ecb_dec *) malloc(sizeof(thread_arg_ecb_dec));
+		
+		arg->id = i;
+		arg->key = ret->key;
+		arg->keysize_bytes = keysize_bytes;
+		arg->blocksize = keysize_bytes;
+		arg->message = &(input->message[arg->id * arg->blocksize]);
+		arg->dec_block = &(*(ret->enc)[arg->id]);
+
+		if (pthread_create(&threads[i], NULL, thread_start_ecb_dec_block, (void *) arg)) {
 			perror("pthread_create");
 			exit(EXIT_FAILURE);
 		}
@@ -70,23 +114,10 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 	return ret;
 }
 
-void *thread_start_ecb_enc_block (void *arg) {
-	thread_arg_ecb_enc thread_data = *((thread_arg_ecb_enc *) arg);
+void *thread_start_ecb_dec_block (void *arg) {
+	thread_arg_ecb_dec thread_data = *((thread_arg_ecb_dec *) arg);
 	for (int i = 0; i < thread_data.keysize_bytes; ++i)
-		thread_data.ret[i] = (thread_data.message)[i] ^ ((char *) thread_data.key)[i];
-	
+		thread_data.message[i] = thread_data.dec_block[i] ^ ((char *) thread_data.key)[i];
 	return NULL;
 }
-
-// char* electronic_code_book_dec(struct electronic_code_book_enc_ret* input) {
-
-// }
-
-// void *thread_start_ecb_dec_block (void *arg) {
-// 	thread_arg_ecb_enc thread_data = *((thread_arg_ecb_enc *) arg);
-// 	for (int i = 0; i < thread_data.keysize_bytes; ++i)
-// 		thread_data.ret[i] = (thread_data.message)[i] ^ ((char *) thread_data.key)[i];
-
-// 	return NULL;
-// }
 
