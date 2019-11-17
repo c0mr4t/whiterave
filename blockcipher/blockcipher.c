@@ -28,10 +28,10 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 		keysize_bytes = input->keysize / 8;
 	}
 
-	struct electronic_code_book_parameters *ret = (struct electronic_code_book_parameters *) malloc(sizeof(*ret)); 
+	struct electronic_code_book_parameters *ret = input; 
 	ret->m_len = strlen(input->message);
 	ret->key = generate_ecb_key(input->keysize);
-	ret->keysize = input->keysize;
+	ret->keysize = input->keysize; // not necessary
 	ret->number_of_blocks = 1 + ((strlen(input->message) - 1) / (keysize_bytes)); // ceil(int division)
 	ret->blocksize = keysize_bytes;
 	ret->enc = (char **) malloc(ret->number_of_blocks * sizeof(char *));
@@ -65,8 +65,6 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 		}
 	}
 
-	free(input); // is this working?
-
 	return ret;
 }
 
@@ -80,7 +78,7 @@ void *thread_start_ecb_enc_block (void *arg) {
 
 struct electronic_code_book_parameters* electronic_code_book_dec(struct electronic_code_book_parameters* input) {
 	struct electronic_code_book_parameters *ret = input;
-	input->message = (char *) malloc (1000 * sizeof(char));	
+	ret->message = (char *) malloc (input->m_len * sizeof(char));	
 
 	int keysize_bytes = input->keysize / 8;
 
@@ -93,7 +91,7 @@ struct electronic_code_book_parameters* electronic_code_book_dec(struct electron
 		arg->key = ret->key;
 		arg->keysize_bytes = keysize_bytes;
 		arg->blocksize = keysize_bytes;
-		arg->message = &(input->message[arg->id * arg->blocksize]);
+		arg->message = &(ret->message[arg->id * arg->blocksize]);
 		arg->dec_block = &(*(ret->enc)[arg->id]);
 
 		if (pthread_create(&threads[i], NULL, thread_start_ecb_dec_block, (void *) arg)) {
@@ -118,6 +116,7 @@ void *thread_start_ecb_dec_block (void *arg) {
 	thread_arg_ecb_dec thread_data = *((thread_arg_ecb_dec *) arg);
 	for (int i = 0; i < thread_data.keysize_bytes; ++i)
 		thread_data.message[i] = thread_data.dec_block[i] ^ ((char *) thread_data.key)[i];
+	
 	return NULL;
 }
 
