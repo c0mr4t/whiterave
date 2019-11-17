@@ -30,7 +30,7 @@ start_conf* parse_arguments (int argc, char *argv[]) {
             	ret->blockcipher = optarg;
                	break;
             case 's':
-                if (ret->keysize != 256)
+                if (ret->keysize != MAX_KEYSIZE_BLOCKCIPHER)
                     handle_parsing_error(argv[0]);
                 ret->keysize = atoi(optarg);
                 break;

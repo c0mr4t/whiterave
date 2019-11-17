@@ -23,8 +23,6 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 	if (error_ecb_enc(input->message, strlen(input->message), input->keysize) == ERROR) // override
 		return NULL;
 
-	struct electronic_code_book_parameters *ret = (struct electronic_code_book_parameters *) malloc(sizeof(*ret)); 
-
 	int keysize_bytes = input->keysize / 8;
 
 	if (strlen(input->message) < keysize_bytes) {
@@ -32,6 +30,7 @@ struct electronic_code_book_parameters* electronic_code_book_enc(struct electron
 		keysize_bytes = input->keysize / 8;
 	}
 
+	struct electronic_code_book_parameters *ret = (struct electronic_code_book_parameters *) malloc(sizeof(*ret)); 
 	ret->m_len = strlen(input->message);
 	ret->key = generate_ecb_key(input->keysize);
 	ret->keysize = input->keysize;
@@ -87,7 +86,7 @@ void *thread_start_ecb_enc_block (void *arg) {
 // 	thread_arg_ecb_enc thread_data = *((thread_arg_ecb_enc *) arg);
 // 	for (int i = 0; i < thread_data.keysize_bytes; ++i)
 // 		thread_data.ret[i] = (thread_data.message)[i] ^ ((char *) thread_data.key)[i];
-	
+
 // 	return NULL;
 // }
 
