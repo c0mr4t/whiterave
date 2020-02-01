@@ -3,3 +3,5 @@
 void calling_with_start_conf(start_conf* input);
 
 void call_ecb(start_conf* input);
+
+void call_cbc(start_conf* input);

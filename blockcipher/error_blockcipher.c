@@ -40,3 +40,7 @@ void ecb_errno(char *message, int m_len, int keysize) {
 
 	global_errno = 0;
 }
+
+int error_cbc_enc(char* message, int m_len, int keysize) {
+	return NO_ERROR;
+}

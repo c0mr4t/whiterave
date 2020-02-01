@@ -11,24 +11,19 @@
 #define MAX_M_LEN 65536
 #endif
 
+#define ECB_FLAG 0
+#define CBC_FLAG 1
+
 struct electronic_code_book_parameters* electronic_code_book_enc(struct electronic_code_book_parameters* input) {
-	if (input->message == NULL) {
-		FILE *fd = fopen(input->m_file, "r");
-		input->message = (char *) malloc(MAX_M_LEN * sizeof(char));
-		input->message = fgets(input->message, MAX_M_LEN, fd);
-	}
+	message_or_file(input->message, input->m_file);
 
 	if (error_ecb_enc(input->message, strlen(input->message), input->keysize) == ERROR) // override
 		return NULL;
 
+	input->keysize = adjust_keysize(input->message, input->keysize);
 	int keysize_bytes = input->keysize / 8;
 
-	if (strlen(input->message) < keysize_bytes) {
-		input->keysize = strlen(input->message) * 8;
-		keysize_bytes = input->keysize / 8;
-	}
-
-	struct electronic_code_book_parameters *ret = input; 
+	struct electronic_code_book_parameters *ret = input; // ret object contains also cleartext message..
 	ret->m_len = strlen(input->message);
 	ret->key = generate_ecb_key(input->keysize);
 	ret->keysize = input->keysize; // not necessary
@@ -77,6 +72,8 @@ void *thread_start_ecb_enc_block (void *arg) {
 }
 
 struct electronic_code_book_parameters* electronic_code_book_dec(struct electronic_code_book_parameters* input) {
+	// free of error checking etc (yet) because ecb_enc must have been called before
+
 	struct electronic_code_book_parameters *ret = input;
 	ret->message = (char *) malloc (input->m_len * sizeof(char));	
 
@@ -120,3 +117,99 @@ void *thread_start_ecb_dec_block (void *arg) {
 	return NULL;
 }
 
+struct cipher_block_chaining_parameters* cipher_block_chaining_enc(struct cipher_block_chaining_parameters* input) {
+	message_or_file(input->message, input->m_file);
+
+	// if (error_cbc_enc(input->message, strlen(input->message), input->keysize) == ERROR) // override
+	// 	return NULL;
+
+	input->keysize = adjust_keysize(input->message, input->keysize);
+	int keysize_bytes = input->keysize / 8;
+
+	struct cipher_block_chaining_parameters *ret = input; // ret object contains also cleartext message..
+	ret->m_len = strlen(input->message);
+	ret->key = generate_ecb_key(input->keysize);
+	ret->keysize = input->keysize; // not necessary
+	ret->number_of_blocks = 1 + ((strlen(input->message) - 1) / (keysize_bytes)); // ceil(int division)
+	ret->blocksize = keysize_bytes;
+	ret->enc = (char **) malloc(ret->number_of_blocks * sizeof(char *));
+	for (int i = 0; i < ret->number_of_blocks; ++i)
+		ret->enc[i] = (char *) malloc(keysize_bytes * sizeof(char));
+	ret->init_vector = generate_ecb_key(input->keysize);
+
+
+	for (int j = 0; j < keysize_bytes; ++j) {
+		ret->enc[0][j] = ret->message[0 * keysize_bytes + j] ^ ((char *) ret->init_vector)[j];
+		ret->enc[0][j] = ret->enc[0][j] ^ ((char *) ret->key)[j];
+	}
+
+	// encryption could get parallelized bytewise..
+	for (int i = 1; i < ret->number_of_blocks; ++i) {
+		for (int j = 0; j < keysize_bytes; ++j) {
+			ret->enc[i][j] = ret->message[i * keysize_bytes + j] ^ ((char *) ret->enc[i - 1])[j];
+			ret->enc[i][j] = ret->enc[i][j] ^ ((char *) ret->key)[j];
+		}
+	}
+
+	return ret;	
+}
+
+struct cipher_block_chaining_parameters* cipher_block_chaining_dec(struct cipher_block_chaining_parameters* input) {
+	// free of error checking etc because ecb_enc must have been called before
+
+	struct cipher_block_chaining_parameters *ret = input;
+	ret->message = (char *) malloc (input->m_len * sizeof(char));	
+
+	int keysize_bytes = input->keysize / 8;
+
+	for (int j = 0; j < keysize_bytes; ++j) {
+		ret->enc[0][j] = ret->enc[0][j] ^ ((char *) ret->key)[j];
+		ret->message[0] = ret->enc[0][j] ^ ((char *) ret->init_vector)[j];
+	}
+
+	// decryption could get parallelized bytewise as well..
+	for (int i = 1; i < ret->number_of_blocks; ++i) {
+		for (int j = 0; j < keysize_bytes; ++j) {
+			ret->enc[i][j] = ret->enc[i][j] ^ ((char *) ret->key)[j];
+			ret->message[i] = ret->enc[i][j] ^ ((char *) ret->enc[i - 1])[j];		
+		}
+	}
+
+	return ret;
+}
+
+void message_or_file(char *message, char *file) {
+	if (message == NULL) {
+		FILE *fd = fopen(file, "r");
+		message = (char *) malloc(MAX_M_LEN * sizeof(char));
+		message = fgets(message, MAX_M_LEN, fd);
+	}
+}
+
+int adjust_keysize(char *message, int keysize) {
+	if (strlen(message) < keysize / 8) {
+		keysize = strlen(message) * 8;
+	}
+
+	return keysize;
+}
+
+// void prepare_for_encryption(void* ret, char *message, int keysize, int keysize_bytes, int flag) {
+// 	switch (flag) {
+// 		case ECB_FLAG: 
+// 			ret = ((struct electronic_code_book_parameters *) ret);
+// 			break;
+// 		case CBC_FLAG: 
+// 			ret = ((struct cipher_block_chaining_parameters *) ret);
+// 			break;
+// 	}
+
+// 	ret->m_len = strlen(message);
+// 	ret->key = generate_ecb_key(keysize);
+// 	ret->keysize = keysize; // not necessary
+// 	ret->number_of_blocks = 1 + ((strlen(message) - 1) / (keysize_bytes)); // ceil(int division)
+// 	ret->blocksize = keysize_bytes;
+// 	ret->enc = (char **) malloc(ret->number_of_blocks * sizeof(char *));
+// 	for (int i = 0; i < ret->number_of_blocks; ++i)
+// 		ret->enc[i] = (char *) malloc(keysize_bytes * sizeof(char));
+// }
